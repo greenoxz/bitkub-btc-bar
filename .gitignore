@@ -1,0 +1,20 @@
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Build artifacts & App Bundle
+BitkubBtcBar
+BitkubBtcBar.app/
+*.app/
+*.zip
+*.dmg
+*.dSYM/
+.build/
+
+# Local testing & scratch files
+test_*.swift
+*.local
+*.log
+scratch/
