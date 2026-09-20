@@ -2,6 +2,7 @@ import Cocoa
 import SwiftUI
 import Charts
 import CryptoKit
+import Combine
 
 // MARK: - Models
 
@@ -750,6 +751,7 @@ func formatDcaOrderDate(_ date: Date) -> String {
 
 struct PopoverView: View {
     @ObservedObject var store: BitkubStore
+    var onResize: (() -> Void)? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -810,8 +812,8 @@ struct PopoverView: View {
                 .help(store.showingSettings ? "กลับหน้าหลัก" : "ตั้งค่า API")
             }
             .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 12)
+            .padding(.top, 12)
+            .padding(.bottom, 10)
 
             Divider()
                 .opacity(0.15)
@@ -856,10 +858,26 @@ struct PopoverView: View {
                 .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.8))
             }
             .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            .padding(.vertical, 7)
         }
-        .frame(width: 360)
+        .frame(width: 360, alignment: .top)
+        .fixedSize(horizontal: false, vertical: true)
         .background(VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow))
+        .onReceive(store.$showingSettings) { _ in
+            DispatchQueue.main.async {
+                onResize?()
+            }
+        }
+        .onReceive(store.$selectedChartTab) { _ in
+            DispatchQueue.main.async {
+                onResize?()
+            }
+        }
+        .onReceive(store.$thbBalance) { _ in
+            DispatchQueue.main.async {
+                onResize?()
+            }
+        }
     }
 }
 
@@ -869,7 +887,7 @@ struct DashboardView: View {
     @ObservedObject var store: BitkubStore
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 9) {
             // ⚠️ LOW BALANCE ALERT BANNER (เมื่อเหลือ DCA <= 2 วัน)
             if store.isThbLow && !store.apiKey.isEmpty {
                 HStack(spacing: 8) {
@@ -894,7 +912,7 @@ struct DashboardView: View {
                         .overlay(Capsule().stroke(Color.orange.opacity(0.4), lineWidth: 1))
                 }
                 .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .padding(.vertical, 7)
                 .background(
                     Capsule()
                         .fill(Color.orange.opacity(0.12))
@@ -907,18 +925,18 @@ struct DashboardView: View {
             }
 
             // 1. HERO GLASS CARD: มูลค่าพอร์ต DCA & จำนวน Sats
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 5) {
                 HStack {
                     Text("มูลค่าพอร์ต DCA")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 10.5, weight: .semibold))
                         .foregroundColor(.white.opacity(0.65))
                     Spacer()
                     if let date = store.dcaStartDate {
                         Text("สะสม \(store.dcaOrderCount) ไม้ (เริ่ม \(formatShortThaiDate(date)))")
-                            .font(.system(size: 9.5, weight: .medium))
+                            .font(.system(size: 9, weight: .medium))
                             .foregroundColor(.white.opacity(0.75))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2.5)
                             .background(Capsule().fill(Color.white.opacity(0.08)))
                             .overlay(Capsule().stroke(Color.white.opacity(0.15), lineWidth: 1))
                     }
@@ -926,7 +944,7 @@ struct DashboardView: View {
 
                 HStack(alignment: .firstTextBaseline) {
                     Text("฿\(store.dcaCurrentValue.formattedWithCommas(decimalPlaces: 2))")
-                        .font(.system(size: 24, weight: .bold, design: .rounded))
+                        .font(.system(size: 23, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
 
                     Spacer()
@@ -940,10 +958,10 @@ struct DashboardView: View {
                         Image(systemName: profit >= 0 ? "arrow.up.right" : "arrow.down.right")
                         Text("\(sign)\(pct, specifier: "%.2f")% (\(sign)฿\(profit.formattedWithCommas(decimalPlaces: 0)))")
                     }
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .font(.system(size: 10.5, weight: .bold, design: .rounded))
                     .foregroundColor(profit >= 0 ? Color(red: 0.3, green: 0.95, blue: 0.5) : Color(red: 1.0, green: 0.35, blue: 0.3))
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4.5)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
                     .background(
                         Capsule()
                             .fill((profit >= 0 ? Color.green : Color.red).opacity(0.18))
@@ -959,13 +977,13 @@ struct DashboardView: View {
                 HStack(spacing: 6) {
                     HStack(spacing: 3) {
                         Image(systemName: "bolt.fill")
-                            .font(.system(size: 8.5))
+                            .font(.system(size: 8))
                         Text("\(store.dcaSats.formattedWithCommas()) Sats")
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .font(.system(size: 9.5, weight: .bold, design: .rounded))
                     }
                     .foregroundColor(Color(red: 1.0, green: 0.78, blue: 0.2))
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3.5)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 3)
                     .background(Capsule().fill(Color(red: 1.0, green: 0.7, blue: 0.1).opacity(0.16)))
                     .overlay(Capsule().stroke(Color(red: 1.0, green: 0.7, blue: 0.1).opacity(0.35), lineWidth: 1))
 
@@ -976,131 +994,131 @@ struct DashboardView: View {
                             Text("฿\(Int(latest.rate).formattedWithCommas())")
                                 .foregroundColor(.white.opacity(0.95))
                         }
-                        .font(.system(size: 9.5, weight: .semibold, design: .rounded))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3.5)
+                        .font(.system(size: 9, weight: .semibold, design: .rounded))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3)
                         .background(Capsule().fill(Color.white.opacity(0.08)))
                         .overlay(Capsule().stroke(Color.white.opacity(0.16), lineWidth: 1))
                     }
                 }
 
                 Text("ต้นทุนสะสม: ฿\(store.totalInvestedThb.formattedWithCommas(decimalPlaces: 2)) (~฿\(Int(store.dailyDcaAmount))/วัน)")
-                    .font(.system(size: 9.5))
+                    .font(.system(size: 9))
                     .foregroundColor(.white.opacity(0.55))
             }
-            .padding(12)
-            .liquidGlass(cornerRadius: 13, fillOpacity: 0.12, borderOpacity: 0.3)
+            .padding(10)
+            .liquidGlass(cornerRadius: 12, fillOpacity: 0.12, borderOpacity: 0.3)
 
             // 2. 2 x 2 GLASS METRICS GRID
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
                 // 1. เงินสดคงเหลือ
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("เงินสดคงเหลือ (THB)")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: 8.5, weight: .semibold))
                         .foregroundColor(.white.opacity(0.65))
                     Text("฿\(store.thbBalance.formattedWithCommas(decimalPlaces: 2))")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(store.isThbLow ? Color.orange : .white)
 
                     HStack(spacing: 3) {
                         if store.isThbLow {
                             Image(systemName: "exclamationmark.triangle.fill")
-                                .font(.system(size: 7.5))
+                                .font(.system(size: 7))
                         }
                         Text("DCA ได้อีก ~\(store.dcaDaysLeft) วัน")
-                            .font(.system(size: 8.5, weight: .semibold))
+                            .font(.system(size: 8, weight: .semibold))
                     }
                     .foregroundColor(store.isThbLow ? Color.orange : .white.opacity(0.7))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2.5)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
                     .background(Capsule().fill(store.isThbLow ? Color.orange.opacity(0.18) : Color.white.opacity(0.08)))
                     .overlay(Capsule().stroke(store.isThbLow ? Color.orange.opacity(0.35) : Color.white.opacity(0.14), lineWidth: 0.8))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
+                .padding(8)
                 .liquidGlass(cornerRadius: 10, fillOpacity: 0.08, borderOpacity: 0.2)
 
                 // 2. Bitcoin ที่ถือครอง (Sats ⚡️)
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("Bitcoin ในกระเป๋า (Sats ⚡️)")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: 8.5, weight: .semibold))
                         .foregroundColor(.white.opacity(0.65))
                     Text("\(store.totalSats.formattedWithCommas()) Sats")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
 
                     Text("≈ ฿\(store.totalPortfolioValue.formattedWithCommas(decimalPlaces: 0)) (\(store.effectiveBtc, specifier: "%.4f") BTC)")
-                        .font(.system(size: 8.5, weight: .medium))
+                        .font(.system(size: 8, weight: .medium))
                         .foregroundColor(.white.opacity(0.75))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2.5)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
                         .background(Capsule().fill(Color.white.opacity(0.07)))
                         .overlay(Capsule().stroke(Color.white.opacity(0.12), lineWidth: 0.8))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
+                .padding(8)
                 .liquidGlass(cornerRadius: 10, fillOpacity: 0.08, borderOpacity: 0.2)
 
                 // 3. ราคาซื้อเฉลี่ย & ไม้ล่าสุด
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("ราคาซื้อเฉลี่ยของคุณ")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: 8.5, weight: .semibold))
                         .foregroundColor(.white.opacity(0.65))
                     Text("฿\(Int(store.averageBuyPrice).formattedWithCommas())")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(Color(red: 1.0, green: 0.65, blue: 0.15))
 
                     if let latest = store.latestOrder {
                         HStack(spacing: 3) {
                             Text("ไม้ล่าสุด ฿\(Int(latest.rate).formattedWithCommas())")
-                                .font(.system(size: 8.5, weight: .medium))
+                                .font(.system(size: 8, weight: .medium))
                         }
                         .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.2))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2.5)
-                        .background(Capsule().fill(Color(red: 1.0, green: 0.7, blue: 0.2).opacity(0.14)))
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Color.red.opacity(0.001)).background(Capsule().fill(Color(red: 1.0, green: 0.7, blue: 0.2).opacity(0.14))))
                         .overlay(Capsule().stroke(Color(red: 1.0, green: 0.7, blue: 0.2).opacity(0.3), lineWidth: 0.8))
                     } else {
                         Text("ต่อ 1 BTC")
-                            .font(.system(size: 8.5))
+                            .font(.system(size: 8))
                             .foregroundColor(.white.opacity(0.6))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2.5)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
                             .background(Capsule().fill(Color.white.opacity(0.06)))
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
+                .padding(8)
                 .liquidGlass(cornerRadius: 10, fillOpacity: 0.08, borderOpacity: 0.2)
 
                 // 4. ราคาตลาดล่าสุด
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text("ราคาตลาดล่าสุด")
-                        .font(.system(size: 9, weight: .semibold))
+                        .font(.system(size: 8.5, weight: .semibold))
                         .foregroundColor(.white.opacity(0.65))
                     Text("฿\(Int(store.lastPrice).formattedWithCommas())")
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(size: 13, weight: .bold, design: .rounded))
                         .foregroundColor(.white)
 
                     HStack(spacing: 2) {
                         Image(systemName: store.percentChange >= 0 ? "arrow.up" : "arrow.down")
-                            .font(.system(size: 7))
+                            .font(.system(size: 6.5))
                         Text("24h: \(store.percentChange >= 0 ? "+" : "")\(store.percentChange, specifier: "%.2f")%")
-                            .font(.system(size: 8.5, weight: .bold))
+                            .font(.system(size: 8, weight: .bold))
                     }
                     .foregroundColor(store.percentChange >= 0 ? Color(red: 0.3, green: 0.95, blue: 0.5) : Color(red: 1.0, green: 0.35, blue: 0.3))
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2.5)
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 2)
                     .background(Capsule().fill((store.percentChange >= 0 ? Color.green : Color.red).opacity(0.16)))
                     .overlay(Capsule().stroke((store.percentChange >= 0 ? Color.green : Color.red).opacity(0.35), lineWidth: 0.8))
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(10)
+                .padding(8)
                 .liquidGlass(cornerRadius: 10, fillOpacity: 0.08, borderOpacity: 0.2)
             }
 
             // 3. CHART & DAILY BUYS SECTION (Glass Pill Tabs)
-            VStack(alignment: .leading, spacing: 7) {
+            VStack(alignment: .leading, spacing: 6) {
                 // Glass Pill Tab Selector
                 HStack(spacing: 3) {
                     chartTabButton(title: "DCA vs เงินสด", index: 0)
@@ -1393,7 +1411,8 @@ struct DashboardView: View {
             }
             .padding(.top, 2)
         }
-        .padding(14)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
     }
 
     private func chartTabButton(title: String, index: Int) -> some View {
@@ -1557,6 +1576,7 @@ struct SettingsView: View {
 class AppDelegate: NSObject, NSApplicationDelegate {
     var statusItem: NSStatusItem!
     var popover: NSPopover!
+    var hostingController: NSHostingController<PopoverView>!
     var store = BitkubStore()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -1567,19 +1587,34 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             button.target = self
         }
 
-        let popoverView = PopoverView(store: store)
-        let hostingController = NSHostingController(rootView: popoverView)
+        let popoverView = PopoverView(store: store, onResize: { [weak self] in
+            self?.updatePopoverSize()
+        })
+        hostingController = NSHostingController(rootView: popoverView)
 
         popover = NSPopover()
-        popover.contentSize = NSSize(width: 360, height: 505)
         popover.behavior = .transient
         popover.contentViewController = hostingController
 
+        updatePopoverSize()
+
         store.onUpdate = { [weak self] in
-            self?.updateStatusBarLabel()
+            DispatchQueue.main.async {
+                self?.updateStatusBarLabel()
+                self?.updatePopoverSize()
+            }
         }
 
         updateStatusBarLabel()
+    }
+
+    func updatePopoverSize() {
+        guard let hc = hostingController else { return }
+        let targetSize = hc.sizeThatFits(in: NSSize(width: 360, height: CGFloat.greatestFiniteMagnitude))
+        let targetHeight = max(510, ceil(targetSize.height))
+        if popover.contentSize.height != targetHeight {
+            popover.contentSize = NSSize(width: 360, height: targetHeight)
+        }
     }
 
     private func updateStatusBarLabel() {
@@ -1627,6 +1662,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if popover.isShown {
             popover.performClose(sender)
         } else {
+            updatePopoverSize()
             popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
