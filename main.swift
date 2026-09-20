@@ -219,6 +219,7 @@ final class BitkubStore: ObservableObject, @unchecked Sendable {
     @Published var apiErrorMessage: String?
 
     // UI & Settings State
+    @Published var language: String = "th" // "th" or "en"
     @Published var showingSettings: Bool = false
     @Published var apiKeyInput: String = ""
     @Published var apiSecretInput: String = ""
@@ -257,9 +258,20 @@ final class BitkubStore: ObservableObject, @unchecked Sendable {
         self.useApiForBalance = !apiKey.isEmpty && !apiSecret.isEmpty
         self.showDcaProfitOnBar = UserDefaults.standard.bool(forKey: "com.bitkub.btcbar.showDcaOnBar")
         self.barDisplayMode = UserDefaults.standard.integer(forKey: "com.bitkub.btcbar.barDisplayMode")
+        self.language = UserDefaults.standard.string(forKey: "com.bitkub.btcbar.language") ?? "th"
 
         startTimers()
         fetchAllData()
+    }
+
+    func setLanguage(_ lang: String) {
+        self.language = lang
+        UserDefaults.standard.set(lang, forKey: "com.bitkub.btcbar.language")
+        onUpdate?()
+    }
+
+    func t(_ th: String, _ en: String) -> String {
+        return language == "en" ? en : th
     }
 
     func saveCredentials() {
@@ -741,26 +753,32 @@ extension Int64 {
     }
 }
 
-func formatShortThaiDate(_ date: Date) -> String {
+func formatShortDate(_ date: Date, language: String = "th") -> String {
     let formatter = DateFormatter()
-    formatter.dateFormat = "d MMM"
-    formatter.locale = Locale(identifier: "th_TH")
+    formatter.dateFormat = language == "en" ? "d MMM" : "d MMM"
+    formatter.locale = Locale(identifier: language == "en" ? "en_US" : "th_TH")
     return formatter.string(from: date)
 }
 
-func formatDcaOrderDate(_ date: Date) -> String {
+func formatShortThaiDate(_ date: Date) -> String {
+    return formatShortDate(date, language: "th")
+}
+
+func formatDcaOrderDate(_ date: Date, language: String = "th") -> String {
     let cal = Calendar.current
     let timeFormatter = DateFormatter()
     timeFormatter.dateFormat = "HH:mm"
 
     if cal.isDateInToday(date) {
-        return "วันนี้ \(timeFormatter.string(from: date))"
+        let prefix = language == "en" ? "Today" : "วันนี้"
+        return "\(prefix) \(timeFormatter.string(from: date))"
     } else if cal.isDateInYesterday(date) {
-        return "เมื่อวาน \(timeFormatter.string(from: date))"
+        let prefix = language == "en" ? "Yesterday" : "เมื่อวาน"
+        return "\(prefix) \(timeFormatter.string(from: date))"
     } else {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "th_TH")
-        f.dateFormat = "d MMM HH:mm"
+        f.locale = Locale(identifier: language == "en" ? "en_US" : "th_TH")
+        f.dateFormat = language == "en" ? "MMM d, HH:mm" : "d MMM HH:mm"
         return f.string(from: date)
     }
 }
@@ -814,7 +832,7 @@ struct PopoverView: View {
                         .overlay(Circle().stroke(Color.white.opacity(0.15), lineWidth: 0.8))
                 }
                 .buttonStyle(.plain)
-                .help("รีเฟรชข้อมูล")
+                .help(store.t("รีเฟรชข้อมูล", "Refresh data"))
 
                 Button(action: {
                     store.showingSettings.toggle()
@@ -827,7 +845,7 @@ struct PopoverView: View {
                         .overlay(Circle().stroke(Color.white.opacity(0.15), lineWidth: 0.8))
                 }
                 .buttonStyle(.plain)
-                .help(store.showingSettings ? "กลับหน้าหลัก" : "ตั้งค่า API")
+                .help(store.showingSettings ? store.t("กลับหน้าหลัก", "Back to Dashboard") : store.t("ตั้งค่า API", "API Settings"))
             }
             .padding(.horizontal, 16)
             .padding(.top, 12)
@@ -852,7 +870,7 @@ struct PopoverView: View {
                         Circle()
                             .fill(Color.white.opacity(0.4))
                             .frame(width: 4, height: 4)
-                        Text("อัปเดต \(updated.formatted(date: .omitted, time: .standard))")
+                        Text("\(store.t("อัปเดต", "Updated")) \(updated.formatted(date: .omitted, time: .standard))")
                             .font(.system(size: 9))
                             .foregroundColor(.white.opacity(0.65))
                     }
@@ -864,7 +882,7 @@ struct PopoverView: View {
 
                 Spacer()
 
-                Button("ออกจากแอป") {
+                Button(store.t("ออกจากแอป", "Quit")) {
                     NSApplication.shared.terminate(nil)
                 }
                 .buttonStyle(.plain)
@@ -909,6 +927,11 @@ struct PopoverView: View {
                 onResize?()
             }
         }
+        .onReceive(store.$language) { _ in
+            DispatchQueue.main.async {
+                onResize?()
+            }
+        }
     }
 }
 
@@ -926,15 +949,15 @@ struct DashboardView: View {
                         .foregroundColor(Color.orange)
                         .font(.callout)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("เงินบาทใน Bitkub ใกล้หมด!")
+                        Text(store.t("เงินบาทใน Bitkub ใกล้หมด!", "Bitkub THB balance is low!"))
                             .font(.system(size: 11, weight: .bold))
                             .foregroundColor(Color.orange)
-                        Text("เหลือ ฿\(store.thbBalance.formattedWithCommas(decimalPlaces: 2)) (DCA ได้อีก ~\(store.dcaDaysLeft) วัน)")
+                        Text(store.t("เหลือ ฿\(store.thbBalance.formattedWithCommas(decimalPlaces: 2)) (DCA ได้อีก ~\(store.dcaDaysLeft) วัน)", "Left: ฿\(store.thbBalance.formattedWithCommas(decimalPlaces: 2)) (~\(store.dcaDaysLeft) days left)"))
                             .font(.system(size: 10))
                             .foregroundColor(.white.opacity(0.75))
                     }
                     Spacer()
-                    Link("เติมเงิน ↗", destination: URL(string: "https://www.bitkub.com/deposit/thb")!)
+                    Link(store.t("เติมเงิน ↗", "Deposit ↗"), destination: URL(string: "https://www.bitkub.com/deposit/thb")!)
                         .font(.system(size: 10, weight: .bold))
                         .foregroundColor(Color.orange)
                         .padding(.horizontal, 10)
@@ -958,12 +981,12 @@ struct DashboardView: View {
             // 1. HERO GLASS CARD: มูลค่าพอร์ต DCA & จำนวน Sats
             VStack(alignment: .leading, spacing: 5) {
                 HStack {
-                    Text("มูลค่าพอร์ต DCA")
+                    Text(store.t("มูลค่าพอร์ต DCA", "DCA Portfolio Value"))
                         .font(.system(size: 10.5, weight: .semibold))
                         .foregroundColor(.white.opacity(0.65))
                     Spacer()
                     if let date = store.dcaStartDate {
-                        Text("สะสม \(store.dcaOrderCount) ไม้ (เริ่ม \(formatShortThaiDate(date)))")
+                        Text(store.t("สะสม \(store.dcaOrderCount) ไม้ (เริ่ม \(formatShortDate(date, language: store.language)))", "\(store.dcaOrderCount) orders (since \(formatShortDate(date, language: store.language)))"))
                             .font(.system(size: 9, weight: .medium))
                             .foregroundColor(.white.opacity(0.75))
                             .padding(.horizontal, 7)
@@ -1020,7 +1043,7 @@ struct DashboardView: View {
 
                     if let latest = store.latestOrder {
                         HStack(spacing: 3) {
-                            Text("ล่าสุด:")
+                            Text(store.t("ล่าสุด:", "Latest:"))
                                 .foregroundColor(.white.opacity(0.6))
                             Text("฿\(Int(latest.rate).formattedWithCommas())")
                                 .foregroundColor(.white.opacity(0.95))
@@ -1033,7 +1056,7 @@ struct DashboardView: View {
                     }
                 }
 
-                Text("ต้นทุนสะสม: ฿\(store.totalInvestedThb.formattedWithCommas(decimalPlaces: 2)) (~฿\(Int(store.dailyDcaAmount))/วัน)")
+                Text(store.t("ต้นทุนสะสม: ฿\(store.totalInvestedThb.formattedWithCommas(decimalPlaces: 2)) (~฿\(Int(store.dailyDcaAmount))/วัน)", "Total Cost: ฿\(store.totalInvestedThb.formattedWithCommas(decimalPlaces: 2)) (~฿\(Int(store.dailyDcaAmount))/day)"))
                     .font(.system(size: 9))
                     .foregroundColor(.white.opacity(0.55))
             }
@@ -1044,7 +1067,7 @@ struct DashboardView: View {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
                 // 1. เงินสดคงเหลือ
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("เงินสดคงเหลือ (THB)")
+                    Text(store.t("เงินสดคงเหลือ (THB)", "Available Cash (THB)"))
                         .font(.system(size: 8.5, weight: .semibold))
                         .foregroundColor(.white.opacity(0.65))
                     Text("฿\(store.thbBalance.formattedWithCommas(decimalPlaces: 2))")
@@ -1056,7 +1079,7 @@ struct DashboardView: View {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.system(size: 7))
                         }
-                        Text("DCA ได้อีก ~\(store.dcaDaysLeft) วัน")
+                        Text(store.t("DCA ได้อีก ~\(store.dcaDaysLeft) วัน", "DCA for ~\(store.dcaDaysLeft) days"))
                             .font(.system(size: 8, weight: .semibold))
                     }
                     .foregroundColor(store.isThbLow ? Color.orange : .white.opacity(0.7))
@@ -1071,7 +1094,7 @@ struct DashboardView: View {
 
                 // 2. Bitcoin ที่ถือครอง (Sats ⚡️)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Bitcoin ในกระเป๋า (Sats ⚡️)")
+                    Text(store.t("Bitcoin ในกระเป๋า (Sats ⚡️)", "Bitcoin in Wallet (Sats ⚡️)"))
                         .font(.system(size: 8.5, weight: .semibold))
                         .foregroundColor(.white.opacity(0.65))
                     Text("\(store.totalSats.formattedWithCommas()) Sats")
@@ -1092,7 +1115,7 @@ struct DashboardView: View {
 
                 // 3. ราคาซื้อเฉลี่ย & ไม้ล่าสุด
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("ราคาซื้อเฉลี่ยของคุณ")
+                    Text(store.t("ราคาซื้อเฉลี่ยของคุณ", "Your Average Buy Price"))
                         .font(.system(size: 8.5, weight: .semibold))
                         .foregroundColor(.white.opacity(0.65))
                     Text("฿\(Int(store.averageBuyPrice).formattedWithCommas())")
@@ -1101,7 +1124,7 @@ struct DashboardView: View {
 
                     if let latest = store.latestOrder {
                         HStack(spacing: 3) {
-                            Text("ไม้ล่าสุด ฿\(Int(latest.rate).formattedWithCommas())")
+                            Text(store.t("ไม้ล่าสุด ฿\(Int(latest.rate).formattedWithCommas())", "Latest ฿\(Int(latest.rate).formattedWithCommas())"))
                                 .font(.system(size: 8, weight: .medium))
                         }
                         .foregroundColor(Color(red: 1.0, green: 0.75, blue: 0.2))
@@ -1110,7 +1133,7 @@ struct DashboardView: View {
                         .background(Capsule().fill(Color.red.opacity(0.001)).background(Capsule().fill(Color(red: 1.0, green: 0.7, blue: 0.2).opacity(0.14))))
                         .overlay(Capsule().stroke(Color(red: 1.0, green: 0.7, blue: 0.2).opacity(0.3), lineWidth: 0.8))
                     } else {
-                        Text("ต่อ 1 BTC")
+                        Text(store.t("ต่อ 1 BTC", "per 1 BTC"))
                             .font(.system(size: 8))
                             .foregroundColor(.white.opacity(0.6))
                             .padding(.horizontal, 5)
@@ -1124,7 +1147,7 @@ struct DashboardView: View {
 
                 // 4. ราคาตลาดล่าสุด
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("ราคาตลาดล่าสุด")
+                    Text(store.t("ราคาตลาดล่าสุด", "Latest Market Price"))
                         .font(.system(size: 8.5, weight: .semibold))
                         .foregroundColor(.white.opacity(0.65))
                     Text("฿\(Int(store.lastPrice).formattedWithCommas())")
@@ -1152,10 +1175,10 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 6) {
                 // Glass Pill Tab Selector
                 HStack(spacing: 3) {
-                    chartTabButton(title: "DCA vs เงินสด", index: 0)
-                    chartTabButton(title: "ราคา 90 วัน", index: 1)
-                    chartTabButton(title: "24 ชม.", index: 2)
-                    chartTabButton(title: "ไม้รายวัน 📜", index: 3)
+                    chartTabButton(title: store.t("DCA vs เงินสด", "DCA vs Cash"), index: 0)
+                    chartTabButton(title: store.t("ราคา 90 วัน", "90D Price"), index: 1)
+                    chartTabButton(title: store.t("24 ชม.", "24 Hours"), index: 2)
+                    chartTabButton(title: store.t("ไม้รายวัน 📜", "Daily DCA 📜"), index: 3)
                 }
                 .padding(3)
                 .background(
@@ -1193,7 +1216,7 @@ struct DashboardView: View {
                                 HStack(spacing: 4) {
                                     Image(systemName: "minus")
                                         .foregroundColor(.white.opacity(0.6))
-                                    Text("เงินสด: ฿\(Int(store.totalInvestedThb).formattedWithCommas())")
+                                    Text("\(store.t("เงินสด", "Cash")): ฿\(Int(store.totalInvestedThb).formattedWithCommas())")
                                         .font(.system(size: 10, weight: .medium))
                                         .foregroundColor(.white.opacity(0.75))
                                 }
@@ -1204,7 +1227,7 @@ struct DashboardView: View {
                                     LineMark(
                                         x: .value("Date", pt.timestamp),
                                         y: .value("Value", pt.cashValue),
-                                        series: .value("Type", "เงินสด")
+                                        series: .value("Type", store.t("เงินสด", "Cash"))
                                     )
                                     .lineStyle(StrokeStyle(lineWidth: 1.2, dash: [3, 3]))
                                     .foregroundStyle(Color.white.opacity(0.4))
@@ -1251,7 +1274,7 @@ struct DashboardView: View {
                     } else {
                         VStack(spacing: 5) {
                             ProgressView().scaleEffect(0.65)
-                            Text(store.apiKey.isEmpty ? "กรุณาใส่ API Key ในหน้าตั้งค่า" : "กำลังโหลดกราฟเปรียบเทียบ...")
+                            Text(store.t(store.apiKey.isEmpty ? "กรุณาใส่ API Key ในหน้าตั้งค่า" : "กำลังโหลดกราฟเปรียบเทียบ...", store.apiKey.isEmpty ? "Please enter API Key in Settings" : "Loading comparison chart..."))
                                 .font(.system(size: 9))
                                 .foregroundColor(.white.opacity(0.55))
                         }
@@ -1263,11 +1286,11 @@ struct DashboardView: View {
                     if !store.priceHistoryDca.isEmpty {
                         VStack(alignment: .leading, spacing: 5) {
                             HStack {
-                                Text("ราคา BTC 90 วัน")
+                                Text(store.t("ราคา BTC 90 วัน", "BTC Price 90 Days"))
                                     .font(.system(size: 10, weight: .medium))
                                     .foregroundColor(.white.opacity(0.8))
                                 Spacer()
-                                Text("ต่ำสุด ฿\(Int(store.dcaMinPrice).formattedWithCommas()) • สูงสุด ฿\(Int(store.dcaMaxPrice).formattedWithCommas())")
+                                Text(store.t("ต่ำสุด ฿\(Int(store.dcaMinPrice).formattedWithCommas()) • สูงสุด ฿\(Int(store.dcaMaxPrice).formattedWithCommas())", "Low ฿\(Int(store.dcaMinPrice).formattedWithCommas()) • High ฿\(Int(store.dcaMaxPrice).formattedWithCommas())"))
                                     .font(.system(size: 8))
                                     .foregroundColor(.white.opacity(0.6))
                             }
@@ -1301,7 +1324,7 @@ struct DashboardView: View {
                                         .lineStyle(StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
                                         .foregroundStyle(Color.yellow)
                                         .annotation(position: .top, alignment: .leading) {
-                                            Text("ต้นทุน ฿\(Int(store.averageBuyPrice).formattedWithCommas())")
+                                            Text("\(store.t("ต้นทุน", "Cost")) ฿\(Int(store.averageBuyPrice).formattedWithCommas())")
                                                 .font(.system(size: 8, weight: .bold))
                                                 .foregroundColor(.yellow)
                                                 .padding(.horizontal, 6)
@@ -1319,7 +1342,7 @@ struct DashboardView: View {
                     } else {
                         VStack(spacing: 5) {
                             ProgressView().scaleEffect(0.65)
-                            Text("กำลังโหลดแนวโน้มราคา...")
+                            Text(store.t("กำลังโหลดแนวโน้มราคา...", "Loading price trend..."))
                                 .font(.system(size: 9))
                                 .foregroundColor(.white.opacity(0.55))
                         }
@@ -1331,11 +1354,11 @@ struct DashboardView: View {
                     if !store.priceHistory24h.isEmpty {
                         VStack(alignment: .leading, spacing: 5) {
                             HStack {
-                                Text("ราคา BTC 24 ชม.")
+                                Text(store.t("ราคา BTC 24 ชม.", "BTC Price 24 Hours"))
                                     .font(.system(size: 10, weight: .medium))
                                     .foregroundColor(.white.opacity(0.8))
                                 Spacer()
-                                Text("ต่ำสุด ฿\(Int(store.low24hr).formattedWithCommas()) • สูงสุด ฿\(Int(store.high24hr).formattedWithCommas())")
+                                Text(store.t("ต่ำสุด ฿\(Int(store.low24hr).formattedWithCommas()) • สูงสุด ฿\(Int(store.high24hr).formattedWithCommas())", "Low ฿\(Int(store.low24hr).formattedWithCommas()) • High ฿\(Int(store.high24hr).formattedWithCommas())"))
                                     .font(.system(size: 8))
                                     .foregroundColor(.white.opacity(0.6))
                             }
@@ -1373,7 +1396,7 @@ struct DashboardView: View {
                     } else {
                         VStack(spacing: 5) {
                             ProgressView().scaleEffect(0.65)
-                            Text("กำลังโหลดกราฟ 24 ชม....")
+                            Text(store.t("กำลังโหลดกราฟ 24 ชม....", "Loading 24h chart..."))
                                 .font(.system(size: 9))
                                 .foregroundColor(.white.opacity(0.55))
                         }
@@ -1384,12 +1407,12 @@ struct DashboardView: View {
                     // TAB 3: ประวัติไม้ DCA รายวันล่าสุด
                     VStack(alignment: .leading, spacing: 5) {
                         HStack {
-                            Text("ประวัติไม้ DCA รายวัน")
+                            Text(store.t("ประวัติไม้ DCA รายวัน", "Daily DCA Orders"))
                                 .font(.system(size: 10, weight: .medium))
                                 .foregroundColor(.white.opacity(0.8))
                             Spacer()
                             if !store.recentDcaOrders.isEmpty {
-                                Text("ล่าสุด \(store.recentDcaOrders.count) ไม้ • ~฿\(Int(round(store.dailyDcaAmount)))/วัน")
+                                Text(store.t("ล่าสุด \(store.recentDcaOrders.count) ไม้ • ~฿\(Int(round(store.dailyDcaAmount)))/วัน", "Latest \(store.recentDcaOrders.count) orders • ~฿\(Int(round(store.dailyDcaAmount)))/day"))
                                     .font(.system(size: 8.5))
                                     .foregroundColor(.white.opacity(0.6))
                             }
@@ -1398,7 +1421,7 @@ struct DashboardView: View {
                         if store.recentDcaOrders.isEmpty {
                             VStack(spacing: 5) {
                                 ProgressView().scaleEffect(0.65)
-                                Text(store.apiKey.isEmpty ? "กรุณาใส่ API Key ในหน้าตั้งค่า" : "กำลังโหลดข้อมูลไม้ DCA...")
+                                Text(store.t(store.apiKey.isEmpty ? "กรุณาใส่ API Key ในหน้าตั้งค่า" : "กำลังโหลดข้อมูลไม้ DCA...", store.apiKey.isEmpty ? "Please enter API Key in Settings" : "Loading DCA orders..."))
                                     .font(.system(size: 9))
                                     .foregroundColor(.white.opacity(0.55))
                             }
@@ -1410,7 +1433,7 @@ struct DashboardView: View {
                                     ForEach(store.recentDcaOrders) { order in
                                         HStack(spacing: 6) {
                                             // วันที่และเวลา
-                                            Text(formatDcaOrderDate(order.date))
+                                            Text(formatDcaOrderDate(order.date, language: store.language))
                                                 .font(.system(size: 9.5, weight: .bold))
                                                 .foregroundColor(.white)
                                                 .frame(minWidth: 72, alignment: .leading)
@@ -1482,57 +1505,57 @@ struct SettingsView: View {
     @ObservedObject var store: BitkubStore
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("ตั้งค่า Bitkub API")
+        VStack(alignment: .leading, spacing: 10) {
+            Text(store.t("ตั้งค่า Bitkub API", "Bitkub API Settings"))
                 .font(.headline)
                 .foregroundColor(.white)
 
-            Text("เปิดสิทธิ์เฉพาะ Read / Wallet เท่านั้น เพื่อความปลอดภัย (ไม่ต้องเปิดสิทธิ์ Trade หรือ Withdraw)")
+            Text(store.t("เปิดสิทธิ์เฉพาะ Read / Wallet เท่านั้น เพื่อความปลอดภัย (ไม่ต้องเปิดสิทธิ์ Trade หรือ Withdraw)", "Enable only Read / Wallet permissions for security (Do NOT enable Trade or Withdraw)"))
                 .font(.caption2)
                 .foregroundColor(.white.opacity(0.65))
                 .fixedSize(horizontal: false, vertical: true)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text("API Key")
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.75))
-                TextField("ใส่ Bitkub API Key", text: $store.apiKeyInput)
+                TextField(store.t("ใส่ Bitkub API Key", "Enter Bitkub API Key"), text: $store.apiKeyInput)
                     .textFieldStyle(.roundedBorder)
             }
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text("API Secret")
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.75))
-                SecureField("ใส่ Bitkub API Secret", text: $store.apiSecretInput)
+                SecureField(store.t("ใส่ Bitkub API Secret", "Enter Bitkub API Secret"), text: $store.apiSecretInput)
                     .textFieldStyle(.roundedBorder)
             }
 
             Divider()
                 .opacity(0.15)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text("เตือนเมื่อเงินบาทเหลือ DCA ได้ต่ำกว่ากี่วัน:")
+            VStack(alignment: .leading, spacing: 3) {
+                Text(store.t("เตือนเมื่อเงินบาทเหลือ DCA ได้ต่ำกว่ากี่วัน:", "Alert when THB balance lasts fewer than:"))
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.75))
                 HStack {
                     TextField("2", text: $store.thresholdInput)
                         .textFieldStyle(.roundedBorder)
                         .frame(width: 50)
-                    Text("วัน (ปัจจุบันเหลือ ~\(store.dcaDaysLeft) วัน)")
+                    Text(store.t("วัน (ปัจจุบันเหลือ ~\(store.dcaDaysLeft) วัน)", "days (currently ~\(store.dcaDaysLeft) days left)"))
                         .font(.caption)
                         .foregroundColor(.white.opacity(0.65))
                 }
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("แสดงข้อมูลบน Menu Bar:")
+            VStack(alignment: .leading, spacing: 5) {
+                Text(store.t("แสดงข้อมูลบน Menu Bar:", "Display on Menu Bar:"))
                     .font(.caption)
                     .foregroundColor(.white.opacity(0.75))
 
                 HStack(spacing: 4) {
-                    barModeButton(title: "💰 เงินในพอร์ต", mode: 0)
-                    barModeButton(title: "📈 ราคาวันนี้", mode: 1)
+                    barModeButton(title: store.t("💰 เงินในพอร์ต", "💰 Portfolio"), mode: 0)
+                    barModeButton(title: store.t("📈 ราคาวันนี้", "📈 Market Price"), mode: 1)
                 }
                 .background(
                     Capsule()
@@ -1560,7 +1583,7 @@ struct SettingsView: View {
                 get: { store.showDcaProfitOnBar },
                 set: { _ in store.toggleBarDisplayMode() }
             )) {
-                Text("แสดงเป็น % กำไร DCA (แทน % ตลาด 24 ชม.)")
+                Text(store.t("แสดงเป็น % กำไร DCA (แทน % ตลาด 24 ชม.)", "Show DCA Profit % (instead of 24h market %)"))
                     .font(.caption)
                     .foregroundColor(store.barDisplayMode == 0 ? .white.opacity(0.85) : .white.opacity(0.35))
             }
@@ -1569,11 +1592,46 @@ struct SettingsView: View {
             Divider()
                 .opacity(0.15)
 
+            // Language Switcher
+            VStack(alignment: .leading, spacing: 5) {
+                Text(store.t("ภาษา / Language:", "Language / ภาษา:"))
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.75))
+
+                HStack(spacing: 4) {
+                    langButton(title: "🇹🇭 ภาษาไทย", code: "th")
+                    langButton(title: "🇬🇧 English", code: "en")
+                }
+                .background(
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                        .overlay(Capsule().fill(Color.white.opacity(0.06)))
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.25),
+                                    Color.white.opacity(0.06)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
+                        .allowsHitTesting(false)
+                )
+            }
+
+            Divider()
+                .opacity(0.15)
+
             HStack(spacing: 8) {
                 Button(action: {
                     store.saveCredentials()
                 }) {
-                    Text("บันทึกข้อมูล")
+                    Text(store.t("บันทึกข้อมูล", "Save Settings"))
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.white)
                         .padding(.horizontal, 16)
@@ -1586,7 +1644,7 @@ struct SettingsView: View {
                 if store.saveSuccess {
                     HStack(spacing: 3) {
                         Image(systemName: "checkmark")
-                        Text("บันทึกสำเร็จ!")
+                        Text(store.t("บันทึกสำเร็จ!", "Saved!"))
                     }
                     .font(.system(size: 10, weight: .bold))
                     .foregroundColor(Color.green)
@@ -1596,7 +1654,7 @@ struct SettingsView: View {
                     .overlay(Capsule().stroke(Color.green.opacity(0.3), lineWidth: 0.8))
                 }
             }
-            .padding(.top, 4)
+            .padding(.top, 2)
         }
         .padding(14)
     }
@@ -1623,6 +1681,29 @@ struct SettingsView: View {
         }
         .buttonStyle(.plain)
     }
+
+    private func langButton(title: String, code: String) -> some View {
+        Button(action: {
+            store.setLanguage(code)
+        }) {
+            Text(title)
+                .font(.system(size: 10.5, weight: store.language == code ? .bold : .medium))
+                .foregroundColor(store.language == code ? .white : .white.opacity(0.65))
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity)
+                .background(
+                    Capsule()
+                        .fill(store.language == code ? Color.white.opacity(0.24) : Color.white.opacity(0.001))
+                )
+                .overlay(
+                    Capsule()
+                        .stroke(store.language == code ? Color.white.opacity(0.38) : Color.clear, lineWidth: 1)
+                        .allowsHitTesting(false)
+                )
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
 }
 
 // MARK: - NSApplication & AppDelegate
@@ -1636,7 +1717,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         if let button = statusItem.button {
-            button.title = "₿ กำลังโหลด..."
+            button.title = store.t("₿ กำลังโหลด...", "₿ Loading...")
             button.action = #selector(togglePopover(_:))
             button.target = self
         }
