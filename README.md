@@ -6,6 +6,10 @@
 
 แอปพลิเคชัน Menu Bar บน macOS สำหรับติดตามพอร์ต **Bitcoin DCA บน Bitkub** และดูราคา BTC แบบเรียลไทม์ ออกแบบด้วยสไตล์ **Liquid Glass (Apple Frosted Glass & Pill Shapes)** ที่หรูหรา โปร่งแสง สบายตา และกลมกลืนกับ macOS
 
+<p align="center">
+  <img src="assets/screenshot.png" width="440" alt="Bitkub BTC Bar Liquid Glass UI" />
+</p>
+
 ---
 
 ## ✨ คุณสมบัติเด่น (Features)
