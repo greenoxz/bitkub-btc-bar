@@ -1,6 +1,6 @@
 cask "bitkub-btc-bar" do
-  version "1.0.1"
-  sha256 "acb0a06b1202e515a38be7bb937c286e2951697bd7cf02c58e16fd8a8f774433"
+  version "1.0.2"
+  sha256 "be029c2877656f82f60d2f325579041f7c45597e2468cf16a1554260dc2e197c"
 
   url "https://github.com/greenoxz/bitkub-btc-bar/releases/download/v#{version}/BitkubBtcBar.zip"
   name "Bitkub BTC Bar"

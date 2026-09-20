@@ -45,7 +45,7 @@ struct DcaOrderItem: Identifiable {
 // MARK: - Visual Effect Blur (Frosted Glass Backdrop)
 
 struct VisualEffectBlur: NSViewRepresentable {
-    var material: NSVisualEffectView.Material = .hudWindow
+    var material: NSVisualEffectView.Material = .popover
     var blendingMode: NSVisualEffectView.BlendingMode = .behindWindow
     var state: NSVisualEffectView.State = .active
 
@@ -68,17 +68,26 @@ struct VisualEffectBlur: NSViewRepresentable {
 
 struct LiquidGlassModifier: ViewModifier {
     var cornerRadius: CGFloat = 12
-    var fillOpacity: Double = 0.09
-    var borderOpacity: Double = 0.25
+    var fillOpacity: Double = 0.08
+    var borderOpacity: Double = 0.35
 
     func body(content: Content) -> some View {
         content
             .background(
                 RoundedRectangle(cornerRadius: cornerRadius)
-                    .fill(Color.white.opacity(fillOpacity))
-                    .background(
+                    .fill(.ultraThinMaterial)
+                    .overlay(
                         RoundedRectangle(cornerRadius: cornerRadius)
-                            .fill(Color.black.opacity(0.18))
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.12),
+                                        Color.white.opacity(0.02)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
                     )
             )
             .overlay(
@@ -87,7 +96,7 @@ struct LiquidGlassModifier: ViewModifier {
                         LinearGradient(
                             colors: [
                                 Color.white.opacity(borderOpacity),
-                                Color.white.opacity(0.05)
+                                Color.white.opacity(0.06)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -95,28 +104,37 @@ struct LiquidGlassModifier: ViewModifier {
                         lineWidth: 1
                     )
             )
-            .shadow(color: Color.black.opacity(0.22), radius: 6, x: 0, y: 3)
+            .shadow(color: Color.black.opacity(0.18), radius: 6, x: 0, y: 3)
     }
 }
 
 extension View {
-    func liquidGlass(cornerRadius: CGFloat = 12, fillOpacity: Double = 0.09, borderOpacity: Double = 0.25) -> some View {
+    func liquidGlass(cornerRadius: CGFloat = 12, fillOpacity: Double = 0.08, borderOpacity: Double = 0.35) -> some View {
         self.modifier(LiquidGlassModifier(cornerRadius: cornerRadius, fillOpacity: fillOpacity, borderOpacity: borderOpacity))
     }
 }
 
 struct LiquidGlassPillModifier: ViewModifier {
-    var fillOpacity: Double = 0.09
-    var borderOpacity: Double = 0.25
+    var fillOpacity: Double = 0.08
+    var borderOpacity: Double = 0.35
 
     func body(content: Content) -> some View {
         content
             .background(
                 Capsule()
-                    .fill(Color.white.opacity(fillOpacity))
-                    .background(
+                    .fill(.ultraThinMaterial)
+                    .overlay(
                         Capsule()
-                            .fill(Color.black.opacity(0.18))
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.white.opacity(0.14),
+                                        Color.white.opacity(0.02)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
                     )
             )
             .overlay(
@@ -125,7 +143,7 @@ struct LiquidGlassPillModifier: ViewModifier {
                         LinearGradient(
                             colors: [
                                 Color.white.opacity(borderOpacity),
-                                Color.white.opacity(0.05)
+                                Color.white.opacity(0.06)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
@@ -133,7 +151,7 @@ struct LiquidGlassPillModifier: ViewModifier {
                         lineWidth: 1
                     )
             )
-            .shadow(color: Color.black.opacity(0.22), radius: 5, x: 0, y: 2)
+            .shadow(color: Color.black.opacity(0.18), radius: 5, x: 0, y: 2)
     }
 }
 
@@ -862,7 +880,20 @@ struct PopoverView: View {
         }
         .frame(width: 360, alignment: .top)
         .fixedSize(horizontal: false, vertical: true)
-        .background(VisualEffectBlur(material: .hudWindow, blendingMode: .behindWindow))
+        .background(
+            ZStack {
+                VisualEffectBlur(material: .popover, blendingMode: .behindWindow)
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(0.06),
+                        Color.white.opacity(0.01),
+                        Color.black.opacity(0.06)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
+        )
         .onReceive(store.$showingSettings) { _ in
             DispatchQueue.main.async {
                 onResize?()
@@ -1129,12 +1160,22 @@ struct DashboardView: View {
                 .padding(3)
                 .background(
                     Capsule()
-                        .fill(Color.white.opacity(0.06))
-                        .background(Capsule().fill(Color.black.opacity(0.22)))
+                        .fill(.ultraThinMaterial)
+                        .overlay(Capsule().fill(Color.white.opacity(0.06)))
                 )
                 .overlay(
                     Capsule()
-                        .stroke(Color.white.opacity(0.14), lineWidth: 1)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.25),
+                                    Color.white.opacity(0.06)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
                 )
 
                 // TAB 0: DCA vs Cash Saved
@@ -1493,11 +1534,24 @@ struct SettingsView: View {
                     barModeButton(title: "💰 เงินในพอร์ต", mode: 0)
                     barModeButton(title: "📈 ราคาวันนี้", mode: 1)
                 }
-                .padding(3)
-                .background(Capsule().fill(Color.white.opacity(0.06)))
+                .background(
+                    Capsule()
+                        .fill(.ultraThinMaterial)
+                        .overlay(Capsule().fill(Color.white.opacity(0.06)))
+                )
                 .overlay(
                     Capsule()
-                        .stroke(Color.white.opacity(0.12), lineWidth: 1)
+                        .stroke(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.25),
+                                    Color.white.opacity(0.06)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1
+                        )
                         .allowsHitTesting(false)
                 )
             }
@@ -1594,6 +1648,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         popover = NSPopover()
         popover.behavior = .transient
+        popover.appearance = NSAppearance(named: .vibrantDark)
         popover.contentViewController = hostingController
 
         updatePopoverSize()
